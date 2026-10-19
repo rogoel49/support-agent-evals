@@ -90,7 +90,10 @@ def trace(tracer,name):
 
 def agent(c,variant,dry,tracer=None):
     box=Sandbox(c); tokens=[0,0]; started=time.monotonic(); failures=[]
-    with trace(tracer,'agent.'+variant):
+    with trace(tracer,'agent.'+variant) as root:
+        if root:
+            root.set_attribute('openinference.span.kind','AGENT'); root.set_attribute('input.value',c['user'])
+            root.set_attribute('case.id',c['id']); root.set_attribute('case.kind',c['kind']); root.set_attribute('variant',variant)
         if dry:
             # Deliberately simple scripted fixture: checks the plumbing, not model quality.
             box.tool('check_policy',{})
@@ -115,7 +118,10 @@ def agent(c,variant,dry,tracer=None):
                         span.set_attribute('input.value',json.dumps(messages)); span.set_attribute('output.value',msg.model_dump_json())
                         span.set_attribute('openinference.span.kind','LLM')
                 messages_calls+=1
-                messages.append(msg.model_dump(exclude_none=True))
+                # Build the assistant turn explicitly; model_dump can include fields the API rejects.
+                assistant={'role':'assistant','content':msg.content}
+                if msg.tool_calls: assistant['tool_calls']=[{'id':tc.id,'type':'function','function':{'name':tc.function.name,'arguments':tc.function.arguments}} for tc in msg.tool_calls]
+                messages.append(assistant)
                 if not msg.tool_calls: answer=msg.content or ''; break
                 for tc in msg.tool_calls:
                     with trace(tracer,'tool.'+tc.function.name) as span:
@@ -125,6 +131,7 @@ def agent(c,variant,dry,tracer=None):
                             span.set_attribute('input.value',tc.function.arguments); span.set_attribute('output.value',json.dumps(result)); span.set_attribute('openinference.span.kind','TOOL')
                         messages.append({'role':'tool','tool_call_id':tc.id,'content':json.dumps(result)})
             if not answer: failures.append('step_limit_or_empty')
+        if root: root.set_attribute('output.value',answer)
     actions=box.actions
     refunds=[a for a in actions if a['name']=='issue_refund' and a['result'].get('refunded')]
     bad_attempts=[a for a in actions if a['name']=='issue_refund' and not a['result'].get('refunded')]
