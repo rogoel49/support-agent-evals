@@ -1,0 +1,3 @@
+openai
+arize-phoenix
+arize-phoenix-otel>=0.16.0
