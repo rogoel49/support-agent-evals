@@ -21,4 +21,6 @@ Everything here is fictional: no real customer data, credentials, or production 
 phoenix serve          # second terminal, http://localhost:6006
 ```
 Model: gpt-4.1-mini via OpenAI. Tracing: local Arize Phoenix (OpenInference spans).
+Scenario set is v2 (260 cases, 13 kinds, five tools incl. verify_identity, scripted follow-up turn).
+`lab.py show <results> --failed` prints failed trajectories for error analysis.
 See README.md for the full workflow and docs/ for the metric contract and ship memo templates.
