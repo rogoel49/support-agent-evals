@@ -40,4 +40,10 @@ violations, lowest cost, and no end-state regressions, whereas `prompt` showed t
 deviations. Decagon-style framing: the failure was the agent not knowing a precondition of a tool, so the fix
 belongs in the tool description, not the model.
 
-## Round 3: scenario v4 / harness v5 (fill after rerun)
+## Round 3: scenario v4 / harness v5 (2026-11-06)
+Opus 5.5 baseline reference, 30 dev cases: task_success 1.0, end_state 1.0, 5 procedural policy_unread attempts,
+3.7 calls/run, $0.026/run (vs Haiku ~$0.0007/run, 37x). Both new hard kinds passed. The policy-skip pattern is
+not a small-model quirk; the strong model does it too at a lower rate, which supports fixing the tool description
+rather than upgrading the model.
+
+Haiku 5.5 four-variant screen (baseline/prompt/tool/effort, 120 cases): fill from results/dev-v4-haiku.jsonl.
