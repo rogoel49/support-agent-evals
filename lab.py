@@ -424,9 +424,15 @@ def run(a):
     if a.model and a.model not in MODELS: raise SystemExit(f'Unknown model {a.model}; choose from {list(MODELS)}')
     results, failures, spent, stopped = [], [], 0.0, False
     err_path = a.out.replace('.jsonl', '.errors.jsonl')
+    done = set()
+    if a.resume and Path(a.out).exists():
+        results = load(a.out); done = {(r['case']['id'], r['variant'], r.get('rep', 0)) for r in results}
+        spent = sum(r['estimated_usd'] for r in results)
+        print(f'Resuming: {len(done)} runs already in {a.out} (${spent:.4f} spent), skipping them.')
     for rep in range(a.repeats):
         for c in cases:
             for variant in variants:
+                if (c['id'], variant, rep) in done: continue
                 cfg = variant_config(variant, a.model)
                 if not fixture and spent + reserve_per_run(cfg['model']) > a.budget:
                     print(f'Local budget stop: spent ${spent:.4f}, next run reserves ${reserve_per_run(cfg["model"]):.4f}, budget ${a.budget}. Partial results kept.'); stopped = True; break
@@ -576,7 +582,7 @@ if __name__ == '__main__':
     r.add_argument('--allow-api', action='store_true'); r.add_argument('--phoenix', action='store_true'); r.add_argument('--quiet', action='store_true')
     r.add_argument('--split', choices=['dev', 'judge', 'test'], default='dev'); r.add_argument('--limit', type=int, default=10); r.add_argument('--kinds', default='')
     r.add_argument('--variants', default='baseline,prompt'); r.add_argument('--model', default='', help='override BASE model for all variants except cheap_model')
-    r.add_argument('--repeats', type=int, default=1); r.add_argument('--budget', type=float, default=1); r.add_argument('--out', default='results/runs.jsonl')
+    r.add_argument('--repeats', type=int, default=1); r.add_argument('--resume', action='store_true', help='skip case/variant/rep rows already saved in --out'); r.add_argument('--budget', type=float, default=1); r.add_argument('--out', default='results/runs.jsonl')
     c = sub.add_parser('compare'); c.add_argument('path')
     s = sub.add_parser('show'); s.add_argument('path'); s.add_argument('--failed', action='store_true'); s.add_argument('--variant', default='')
     l = sub.add_parser('label'); l.add_argument('path'); l.add_argument('--limit', type=int, default=50); l.add_argument('--out', default='labels/review.csv')
