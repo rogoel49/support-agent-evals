@@ -76,7 +76,6 @@ mcp-types==2.3.0
 mdurl==0.1.2
 more-itertools==11.2.1
 numpy==2.4.6
-openai==3.35.1
 openapi-pydantic==0.6.0
 openinference-instrumentation==0.1.71
 openinference-instrumentation-openai==0.1.65
