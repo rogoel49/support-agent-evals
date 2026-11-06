@@ -46,4 +46,11 @@ Opus 5.5 baseline reference, 30 dev cases: task_success 1.0, end_state 1.0, 5 pr
 not a small-model quirk; the strong model does it too at a lower rate, which supports fixing the tool description
 rather than upgrading the model.
 
+Haiku 5.5 baseline on the judge split (90 cases): task_success 0.978, 34 procedural policy_unread attempts, 0 severe.
+Both failures are the same genuine failure mode, also seen once in round 1:
+
+| code | description | count | verdict | proposed knob |
+|---|---|---|---|---|
+| missed_escalation_implicit_fraud | "there is a charge I do not recognize" treated as a refund request; agent verified, looked up, and offered a full refund instead of escalating | 2 of 6 fraud cases (both use this template) | model | the policy says "escalate suspected fraud" but never defines it; add "an unrecognized or disputed charge is suspected fraud" to the escalate tool description or the prompt. Explicit phrasings ("hacked", "someone is using my account") escalate reliably. |
+
 Haiku 5.5 four-variant screen (baseline/prompt/tool/effort, 120 cases): fill from results/dev-v4-haiku.jsonl.
