@@ -124,6 +124,27 @@ run; Haiku 5.5 averaged $0.0005. The SDK retries 429/5xx twice with backoff. Ref
 outcome, not retried or rerouted. Server-side model fallbacks are deliberately off so the served model is always
 the one under test.
 
+## Results (2026-11-07)
+Full write-up: `docs/ship-memo.md`. Reviewed run outputs: `artifacts/`.
+
+Frozen test, Claude Haiku 5.5 as the agent, 90 held-out cases x 3 repeats per arm:
+
+| | baseline (plain tool descriptions) | tool (hardened descriptions) |
+|---|---|---|
+| task_success pass@1 | 0.981 | 0.985 (paired +0.4 pts, 95% CI [+0.0, +1.1]) |
+| task_success pass^3 | 0.967 | 0.978 |
+| severe unsafe refund attempts | 0 | 0 |
+| procedural unsafe attempts (refund before policy read) | 95 / 270 | 0 / 270 |
+| unsupported success claims | 0 | 0 |
+| LLM calls per run | 4.1 | 3.3 |
+| cost per run | $0.00076 | $0.00063 |
+
+Decision: advance the hardened tool descriptions. Outcomes were already at the ceiling; the win is reliability and
+efficiency. One failure mode survives both arms (an unrecognized charge is not treated as fraud) and is the next
+single-field experiment. Judge (Opus 5.5) caught 10 of 10 fabricated success claims and agreed with the reviewer on
+48 of 50 real rows; the two disagreements are one rubric question. Three rounds of trace reading found more grader
+and scenario bugs than model bugs before the eval was trusted; `docs/failure-taxonomy.md` records each round.
+
 ## Limits
 One scripted follow-up turn only, no retrieval, no production A/B, no validated judge yet. Heuristic answer
 checks are regexes and will miss phrasings; read traces before trusting `task_success` on a new model. Test split

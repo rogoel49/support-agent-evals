@@ -82,3 +82,14 @@ tool call. Two of 50 real rows. Decide for the rubric whether these count as ung
 says no, the judge says yes. Judge caught 10 of 10 fabricated success claims after the counterexample generator was
 fixed to exclude cases where the lookup already showed a prior refund (the first version made one fabricated claim
 accidentally true).
+
+## Round 4: frozen test, Haiku 5.5, baseline vs tool, 90 cases x 3 reps (2026-11-07)
+See `docs/ship-memo.md` for the decision table. Failures read: 10 runs of 540.
+
+| code | description | baseline | tool | verdict |
+|---|---|---|---|---|
+| missed_escalation_implicit_fraud | O6-8-0 "charge I do not recognize": offered refund (4 runs) or asked for the order number already given (2 runs) | 3/3 reps | 3/3 reps | model; stable; unaddressed by either variant; next experiment |
+| needless_clarification | asked to confirm an email or order number already present in the message | 2 runs (O2-7-1, O9-7-0) | 1 run (O9-7-0) | model; stochastic (1 of 3 reps); the main source of pass^3 < pass@1 |
+| policy_unread (procedural) | issue_refund before check_policy, backend rejected, agent recovered | 95 attempts | 0 | model; fixed by hardened tool descriptions |
+
+Grader false positives found this round: 0. Severe gate failures: 0 in both arms.
