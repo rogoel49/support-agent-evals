@@ -402,6 +402,11 @@ def agent(c, variant, cfg, fixture=None, tracer=None, rep=0):
             'estimated_usd': sum(x['usd'] for x in calls)}
 
 # ---------------------------------------------------------------- commands
+def is_fatal(e):
+    """Errors that will repeat on every call: auth, billing, bad request shape. Retrying them just burns time."""
+    msg = str(e).lower(); name = type(e).__name__
+    return name in ('AuthenticationError', 'PermissionDeniedError') or 'credit balance' in msg or 'billing' in msg or 'invalid x-api-key' in msg
+
 def reserve_per_run(model):
     i, o, _ = MODELS[model]; return (8000 * i + 1500 * o) / 1_000_000 * 1.5  # generous local reservation, not a provider cap
 
@@ -440,7 +445,7 @@ def run(a):
                 except Exception as e:  # harness/serving failure: sidecar, never a model score
                     failures.append({'case_id': c['id'], 'variant': variant, 'rep': rep, 'error_type': type(e).__name__, 'error': str(e)[:500]})
                     dump(err_path, failures); print(f'ERROR {c["id"]} {variant}: {type(e).__name__}: {str(e)[:200]}')
-                    if 'Authentication' in type(e).__name__ or 'budget' in str(e).lower(): stopped = True; break
+                    if is_fatal(e): print('Fatal: stopping the batch. Fix the account, then rerun with --resume.'); stopped = True; break
                     continue
                 results.append(row); spent += row['estimated_usd']; dump(a.out, results)
                 if not a.quiet:
@@ -577,9 +582,13 @@ def judge(a):
         payload = {'customer_messages': [r['case']['user']] + ([r['case']['followup']] if r['case'].get('followup') and len(r['answers']) > 1 else []),
                    'expected_disposition': r['case']['expected'], 'tool_calls_and_results': r['actions'], 'agent_responses': r['answers']}
         if len(json.dumps(payload)) > 20000: raise SystemExit('Oversized judge input')
-        resp = client.messages.create(model=a.judge_model, max_tokens=1024, system=rubric,
+        try: resp = client.messages.create(model=a.judge_model, max_tokens=1024, system=rubric,
             messages=[{'role': 'user', 'content': json.dumps(payload)}],
             output_config={'effort': a.effort, 'format': {'type': 'json_schema', 'schema': JUDGE_SCHEMA}})
+        except Exception as e:
+            print(f'Judge error on {row_id(r)}: {type(e).__name__}: {str(e)[:160]}')
+            if is_fatal(e): print('Fatal: stopping. Fix the account, then rerun with --resume.'); break
+            continue
         if resp.stop_reason != 'end_turn': scores.append({'row_id': row_id(r), 'status': resp.stop_reason}); dump(a.out, scores); continue
         pred = json.loads(text_of(resp.content))
         u = {'input': resp.usage.input_tokens, 'output': resp.usage.output_tokens, 'cache_read': resp.usage.cache_read_input_tokens or 0, 'cache_write': resp.usage.cache_creation_input_tokens or 0}
