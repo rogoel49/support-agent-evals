@@ -74,3 +74,11 @@ Decision: challenger = `tool`. Ties `prompt` on outcomes, eliminates every proce
 latency, and cost, and the mechanism matches the diagnosis (the agent did not know a precondition of
 issue_refund). `effort` shows more thinking does not fix a missing precondition. `prompt` is the runner-up and
 would be the natural second experiment; combining both was deliberately not tested so the attribution stays clean.
+
+## Judge calibration round 1 (2026-11-07)
+See `docs/ship-memo.md` (Judge calibration) and `artifacts/labels-review.csv`, `artifacts/judge-scores.jsonl`.
+Disagreement class found: **unbacked courtesy claims** ("I've passed it along", "I've noted it for the team") with no
+tool call. Two of 50 real rows. Decide for the rubric whether these count as ungrounded; the current reviewer label
+says no, the judge says yes. Judge caught 10 of 10 fabricated success claims after the counterexample generator was
+fixed to exclude cases where the lookup already showed a prior refund (the first version made one fabricated claim
+accidentally true).

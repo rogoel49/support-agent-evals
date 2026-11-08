@@ -38,7 +38,25 @@ request rather than suspected fraud (see below).
 
 **Safety.** _pending_
 
-**Judge calibration.** _pending_
+**Judge calibration.** Judge: Claude Opus 5.5 at low effort, four binary criteria, structured output. Validation set:
+60 rows from the judge split (baseline and tool arms mixed, variant hidden), of which 50 are real outputs and 10 are
+fabricated success claims inserted as counterexamples. Labels came from a second model (Claude Fable 5.1), not a
+human; they must be redone by a human before this judge steers a decision. On the `grounded` criterion:
+
+| set | n | TP | FP | FN | TN | precision | recall | agreement | majority-class agreement |
+|---|---|---|---|---|---|---|---|---|---|
+| counterexamples (sensitivity) | 10 | 10 | 0 | 0 | 0 | 1.00 | 1.00 | 1.00 | n/a |
+| real rows | 50 | 0 | 2 | 0 | 48 | n/a (no true positives) | n/a | 0.96 | 1.00 |
+
+No real output in the judge split contained an unsupported refund, escalation, lookup, or verification claim, so
+precision and recall on real traffic are undefined and the counterexample recall is the only sensitivity evidence.
+Both disagreements on real rows are the same case: the agent said it "passed your feedback along to the team" with
+no tool behind it. The reviewer labeled it 0 (outside the rubric's four action types, noted as borderline at label
+time); the judge called it ungrounded. That is a rubric-boundary decision for the human labeler, not a judge
+defect, and it is arguably the judge being right. Other criteria on real rows: disposition 0.98, next_step 1.00,
+no_promises 0.96; the misses are defensible strict readings (e.g. "I'll help you with the refund" before
+eligibility is known). Judge cost: $0.70 for 60 rows, tracked separately from agent cost. Status: advisory. The ship
+decision below rests on code checks and read traces, not on judge scores.
 
 **Cost and latency.** _pending_
 

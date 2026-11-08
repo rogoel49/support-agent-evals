@@ -1,0 +1,1 @@
+FROZEN 2026-11-08T02:56Z commit=166e4bd scenario=0bedab704b93603e variants=baseline,tool model=claude-haiku-5-5 repeats=3 split=test
