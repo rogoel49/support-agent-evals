@@ -536,7 +536,8 @@ def label_sheet(a):
     rng = random.Random(49); rng.shuffle(rows)
     sample = rows[:a.limit]
     if a.counterexamples:
-        pool = [r for r in rows if r['status'] == 'ok' and r['end_state']['refunds'] == 0 and r['case']['expected'] != 'verify']
+        pool = [r for r in rows if r['status'] == 'ok' and r['end_state']['refunds'] == 0 and r['case']['expected'] != 'verify'
+                and not any(a['name'] == 'lookup_order' and a['result'].get('refunded') is True for a in r['actions'])]
         for i, src in enumerate(rng.sample(pool, a.counterexamples)):
             cx = json.loads(json.dumps(src)); cx['rep'] = f'cx{i}'; cx['counterexample'] = True
             cx['answers'] = [FALSE_CLAIMS[i % len(FALSE_CLAIMS)].format(amt=src['case']['order']['amount'], oid=src['case']['id'])]
@@ -564,15 +565,21 @@ def judge(a):
     if any(r['fixture'] for r in rows): raise SystemExit('Do not judge fixture rows as model output.')
     import anthropic
     client = anthropic.Anthropic(max_retries=2, timeout=90); scores = []; spent = 0.0
+    if a.resume and Path(a.out).exists():
+        scores = load(a.out); spent = sum(s.get('judge_usd', 0) for s in scores)
+        print(f'Resuming judge: {len(scores)} rows already scored (${spent:.4f}).')
+    done = {s['row_id'] for s in scores}
     rubric = Path('judge_prompt.txt').read_text()
+    reserve = (2500 * MODELS[a.judge_model][0] + 1500 * MODELS[a.judge_model][1]) / 1_000_000
     for r in rows:
-        if spent + 0.03 > a.budget: print(f'Judge budget stop at ${spent:.4f}'); break
+        if row_id(r) in done: continue
+        if spent + reserve > a.budget: print(f'Judge budget stop at ${spent:.4f} (reserve ${reserve:.3f}/row)'); break
         payload = {'customer_messages': [r['case']['user']] + ([r['case']['followup']] if r['case'].get('followup') and len(r['answers']) > 1 else []),
                    'expected_disposition': r['case']['expected'], 'tool_calls_and_results': r['actions'], 'agent_responses': r['answers']}
         if len(json.dumps(payload)) > 20000: raise SystemExit('Oversized judge input')
         resp = client.messages.create(model=a.judge_model, max_tokens=1024, system=rubric,
             messages=[{'role': 'user', 'content': json.dumps(payload)}],
-            output_config={'effort': 'medium', 'format': {'type': 'json_schema', 'schema': JUDGE_SCHEMA}})
+            output_config={'effort': a.effort, 'format': {'type': 'json_schema', 'schema': JUDGE_SCHEMA}})
         if resp.stop_reason != 'end_turn': scores.append({'row_id': row_id(r), 'status': resp.stop_reason}); dump(a.out, scores); continue
         pred = json.loads(text_of(resp.content))
         u = {'input': resp.usage.input_tokens, 'output': resp.usage.output_tokens, 'cache_read': resp.usage.cache_read_input_tokens or 0, 'cache_write': resp.usage.cache_creation_input_tokens or 0}
@@ -613,7 +620,8 @@ if __name__ == '__main__':
     l = sub.add_parser('label'); l.add_argument('path'); l.add_argument('--limit', type=int, default=50); l.add_argument('--out', default='labels/review.csv')
     l.add_argument('--counterexamples', type=int, default=0); l.add_argument('--judge-input', default='results/judge-input.jsonl')
     j = sub.add_parser('judge'); j.add_argument('path'); j.add_argument('--allow-api', action='store_true'); j.add_argument('--budget', type=float, default=1)
-    j.add_argument('--judge-model', default=JUDGE_MODEL); j.add_argument('--out', default='results/judges.jsonl')
+    j.add_argument('--judge-model', default=JUDGE_MODEL); j.add_argument('--effort', default='low', choices=['low', 'medium', 'high']); j.add_argument('--resume', action='store_true')
+    j.add_argument('--out', default='results/judges.jsonl')
     v = sub.add_parser('validate'); v.add_argument('--labels', default='labels/review.csv'); v.add_argument('--scores', default='results/judges.jsonl')
     a = p.parse_args()
     {'generate': lambda _: generate(), 'run': run, 'compare': compare, 'show': show, 'label': label_sheet, 'judge': judge, 'validate': validate}[a.cmd](a)
