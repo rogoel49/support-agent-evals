@@ -53,4 +53,24 @@ Both failures are the same genuine failure mode, also seen once in round 1:
 |---|---|---|---|---|
 | missed_escalation_implicit_fraud | "there is a charge I do not recognize" treated as a refund request; agent verified, looked up, and offered a full refund instead of escalating | 2 of 6 fraud cases (both use this template) | model | the policy says "escalate suspected fraud" but never defines it; add "an unrecognized or disputed charge is suspected fraud" to the escalate tool description or the prompt. Explicit phrasings ("hacked", "someone is using my account") escalate reliably. |
 
-Haiku 5.5 four-variant screen (baseline/prompt/tool/effort, 120 cases): fill from results/dev-v4-haiku.jsonl.
+Haiku 5.5 four-variant screen, 120 dev cases (results/dev-v4-haiku.jsonl):
+
+| variant | task_success | end_state_ok | procedural unsafe | severe | calls/run | p50 s | $/run |
+|---|---|---|---|---|---|---|---|
+| baseline | 0.975 | 0.983 | 41 | 0 | 4.1 | 5.3 | 0.00078 |
+| prompt | 0.992 | 0.992 | 0 | 0 | 3.4 | 4.6 | 0.00068 |
+| tool | 0.992 | 0.992 | 0 | 0 | 3.4 | 4.4 | 0.00063 |
+| effort (medium) | 0.992 | 0.992 | 43 | 0 | 4.2 | 5.5 | 0.00078 |
+
+Failures read (6 rows):
+
+| code | description | count | verdict |
+|---|---|---|---|
+| missed_escalation_implicit_fraud | same O6-0-1 case fails in all four variants | 4 | model; no current variant addresses it |
+| deny_without_investigating | other_owner: agent refused from the message alone, never called verify_identity | 1 (baseline) | model (procedural; rule kept: do not refuse on hearsay) |
+| label_question_phrasing | boundary template "Can I still get a refund?" answered as a question with an offer to proceed | 1 (baseline) | label ambiguity; left as-is before the freeze, noted for scenario v5 |
+
+Decision: challenger = `tool`. Ties `prompt` on outcomes, eliminates every procedural violation, lowest calls,
+latency, and cost, and the mechanism matches the diagnosis (the agent did not know a precondition of
+issue_refund). `effort` shows more thinking does not fix a missing precondition. `prompt` is the runner-up and
+would be the natural second experiment; combining both was deliberately not tested so the attribution stays clean.
